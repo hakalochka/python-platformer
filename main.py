@@ -31,7 +31,7 @@ def load_sprite_sheets(dir1, dir2, width, height, direction = False):
         sprites = []
         for i in range(sprite_sheet.get_width() // width):
             surface = pygame.Surface((width,height), pygame.SRCALPHA, 32)
-            rect = pygame.Rect(i * width, 0,width, height)
+            rect = pygame.Rect(i * width, 0, width, height)
             surface.blit(sprite_sheet, (0,0), rect)
             sprites.append(pygame.transform.scale_by(surface, 4))
         
@@ -65,6 +65,7 @@ def handle_vertical_collision(player, objects, dy):
     collided_objects = []
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
+            print(obj)
             if dy > 0:
                 player.rect.bottom = obj.rect.top
                 player.landed()
@@ -72,7 +73,7 @@ def handle_vertical_collision(player, objects, dy):
                 player.rect.top = obj.rect.bottom
                 player.hit_head()
         
-        collided_objects.append(obj)
+            collided_objects.append(obj)
     
     return collided_objects
 
@@ -102,15 +103,19 @@ def handle_move(player, objects):
     if keys[pygame.K_RIGHT] and not collide_right:
         player.move_right(PLAYER_VEL)
 
-    handle_vertical_collision(player, objects, player.y_vel)
+    vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
+    to_check = [collide_left, collide_right, *vertical_collide]
+    for obj in  to_check:
+        if to_check and obj == "slime":
+            player.hit()
 
 #--------Player------------
 
 class Player(pygame.sprite.Sprite):
     COLOR =  (255,0,0)
     GRAVITY = 1
-    SPRITES = load_sprite_sheets("sprites", "knight", 32, 32, True)
-    ANIMATION_DELAY = 5
+    SPRITES = load_sprite_sheets("sprites", "knight", 32, 19, True)
+    ANIMATION_DELAY = 6
 
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -165,6 +170,8 @@ class Player(pygame.sprite.Sprite):
         self.y_vel *= -1
         print(self.y_vel)
 
+    def hit():
+        print("hit")
 
     def update_sprite(self):
         sprite_sheet = "knight_idle"
@@ -208,10 +215,29 @@ class Block(Object):
         self.image.blit(block,(0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
-class Fire(Object):
+class Slime(Object):
+    ANIMATION_DELAY = 5
+
     def __init__(self, x, y, width, height):
-        super().__init__(self, x, y. width, height, "enemy")
+        super().__init__(x, y, width, height, "slime")
+        self.slime = load_sprite_sheets("sprites", "slimes", 24, 15)
+        self.image = self.slime["slime_purple"][0]
+        self.mask = pygame.mask.from_surface(self.image)
+        self.animation_name = "slime_purple"
+        self.animation_count = 0
+
+    def loop(self):
+
+        sprites = self.slime["slime_purple"]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.image = sprites[sprite_index]
+        self.animation_count += 1
+
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.image)
         
+        if self.animation_count // self.ANIMATION_DELAY > len(sprites):
+            self.animation_count = 0
 
 #--------main------------
 
@@ -224,7 +250,9 @@ def main(window):
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
              for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
     
-    objects = [*floor, Block(0, HEIGHT - block_size * 2, block_size), 
+    slime = Slime(100, HEIGHT - block_size - 60, 24, 15)
+
+    objects = [*floor, slime, Block(0, HEIGHT - block_size * 2, block_size), 
                Block(block_size * 3, HEIGHT - block_size * 4, block_size)]
     #blocks = [Block(0, HEIGHT - block_size, block_size)]
 
@@ -245,6 +273,7 @@ def main(window):
                     player.jump()
         
         player.loop(FPS)
+        slime.loop()
         handle_move(player, objects)
         draw(window, player, objects, offset_x)
         pygame.display.flip()
