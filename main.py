@@ -14,10 +14,22 @@ WIDTH, HEIGHT = 1000, 750
 FPS = 60
 PLAYER_VEL = 5
 
+SCORE_FONT = pygame.font.SysFont("arial", 30)
+SCORE = 0
+
+FONT = pygame.font.SysFont("arial", 60)
+
 window = pygame.display.set_mode((WIDTH, HEIGHT))
 
 def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
+
+def show_message(screen, message, color=(255, 0, 0)):
+    text = FONT.render(message, True, color)
+    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+    screen.blit(text, text_rect)
+    pygame.display.update()
+
 
 def load_sprite_sheets(dir1, dir2, width, height, direction = False):
     path = join("assets", dir1, dir2)
@@ -52,13 +64,35 @@ def get_block(size):
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale_by(surface, 6)
 
-def draw(window, player, objects, offset_x):
+def get_coin(size):
+    path = join("assets", "sprites", "coin.png")
+    image = pygame.image.load(path).convert_alpha()
+    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+    rect = pygame.Rect(0, 0, size, size)
+    surface.blit(image, (0, 0), rect)
+    return pygame.transform.scale_by(surface, 4)
+
+def spawn_coins():
+    return [
+        Coin(200, HEIGHT - 176, 16),
+        Coin(400, HEIGHT - 176, 16),
+        
+    ]
+
+def draw(window, player, objects, coins, offset_x):
     window.fill(BG_COLOR)
     
     for obj in objects:
         obj.draw(window, offset_x)
+    
+    for coin in coins:
+        coin.draw(window, offset_x)
 
     player.draw(window, offset_x)
+
+    score_text = SCORE_FONT.render(f"Score: {SCORE}", True, (0, 0, 0))
+    window.blit(score_text, (10, 10))
+
     pygame.display.update()
 
 def handle_vertical_collision(player, objects, dy):
@@ -76,6 +110,12 @@ def handle_vertical_collision(player, objects, dy):
             collided_objects.append(obj)
     
     return collided_objects
+
+def check_enemy_collision(player, enemies):
+    for enemy in enemies:
+        if pygame.sprite.collide_mask(player, enemy):
+            return True
+    return False
 
 #move player -> check if it collides with oject -> move player back
 def collide(player, objects, dx):
@@ -215,6 +255,13 @@ class Block(Object):
         self.image.blit(block,(0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
+class Coin(Object):
+    def __init__(self,x,y,size):
+        super().__init__(x,y,size,size)
+        coin = get_coin(size)
+        self.image = coin
+        self.mask = pygame.mask.from_surface(self.image)
+
 class Slime(Object):
     ANIMATION_DELAY = 5
 
@@ -242,18 +289,27 @@ class Slime(Object):
 #--------main------------
 
 def main(window):
+    global SCORE
     clock = pygame.time.Clock()
 
-    player = Player(100,100,50,50)
+    player = Player(100,400,50,50)
     
     block_size = 96
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
              for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
     
-    slime = Slime(100, HEIGHT - block_size - 60, 24, 15)
+    slime = Slime(300, HEIGHT - block_size - 60, 24, 15)
 
-    objects = [*floor, slime, Block(0, HEIGHT - block_size * 2, block_size), 
+    coins = spawn_coins()
+
+    enemies = [slime]
+
+    collide_objects = [*floor, Block(0, HEIGHT - block_size * 2, block_size), 
                Block(block_size * 3, HEIGHT - block_size * 4, block_size)]
+   
+    objects = [*collide_objects, *enemies]
+    
+    
     #blocks = [Block(0, HEIGHT - block_size, block_size)]
 
     offset_x = 0
@@ -274,8 +330,29 @@ def main(window):
         
         player.loop(FPS)
         slime.loop()
-        handle_move(player, objects)
-        draw(window, player, objects, offset_x)
+        
+        handle_move(player, collide_objects)
+
+        for coin in coins[:]:
+            if pygame.sprite.collide_mask(player, coin):
+                coins.remove(coin)
+                SCORE += 1
+        
+        if check_enemy_collision(player, enemies):
+            pygame.time.delay(300)
+            window.fill((0, 0, 0))  
+            show_message(window, "You Died")
+
+            SCORE = 0
+            coins = spawn_coins()
+
+            pygame.display.update()
+            pygame.time.delay(1000)
+            player = Player(100, 400, 50, 50)
+            offset_x = 0
+            continue
+        
+        draw(window, player, objects, coins, offset_x)
         pygame.display.flip()
 
         if ((player.rect.right - offset_x >= WIDTH - scroll_area_width) and player.x_vel > 0) or (
