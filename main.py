@@ -24,7 +24,7 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
-def show_message(screen, message, color=(255, 0, 0)):
+def show_message(screen, message, color=(255, 255, 255)):
     text = FONT.render(message, True, color)
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
     screen.blit(text, text_rect)
@@ -61,6 +61,14 @@ def get_block(size):
     image = pygame.image.load(path).convert_alpha()
     surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
     rect = pygame.Rect(0, 0, size, size)
+    surface.blit(image, (0, 0), rect)
+    return pygame.transform.scale_by(surface, 6)
+
+def get_finish(size):
+    path = join("assets", "sprites", "world_tileset.png")
+    image = pygame.image.load(path).convert_alpha()
+    surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+    rect = pygame.Rect(112, 80, size, size)
     surface.blit(image, (0, 0), rect)
     return pygame.transform.scale_by(surface, 6)
 
@@ -117,7 +125,7 @@ def check_enemy_collision(player, enemies):
             return True
     return False
 
-#move player -> check if it collides with oject -> move player back
+#move player -> check if it collides with oject -> move player in opposite direction 
 def collide(player, objects, dx):
     player.move(dx, 0)
     player.update()
@@ -255,6 +263,15 @@ class Block(Object):
         self.image.blit(block,(0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
+class Finish(Object):
+    def __init__(self,x,y,size):
+        super().__init__(x,y,size,size)
+        finish = get_finish(size)
+        
+        
+        self.image.blit(finish,(0,0))
+        self.mask = pygame.mask.from_surface(self.image)
+
 class Coin(Object):
     def __init__(self,x,y,size):
         super().__init__(x,y,size,size)
@@ -286,6 +303,7 @@ class Slime(Object):
         if self.animation_count // self.ANIMATION_DELAY > len(sprites):
             self.animation_count = 0
 
+
 #--------main------------
 
 def main(window):
@@ -304,10 +322,12 @@ def main(window):
 
     enemies = [slime]
 
+    finish = Finish(500, HEIGHT - block_size * 2, block_size)
+
     collide_objects = [*floor, Block(0, HEIGHT - block_size * 2, block_size), 
                Block(block_size * 3, HEIGHT - block_size * 4, block_size)]
    
-    objects = [*collide_objects, *enemies]
+    objects = [*collide_objects, *enemies, finish]
     
     
     #blocks = [Block(0, HEIGHT - block_size, block_size)]
@@ -341,8 +361,21 @@ def main(window):
         if check_enemy_collision(player, enemies):
             pygame.time.delay(300)
             window.fill((0, 0, 0))  
-            show_message(window, "You Died")
+            show_message(window, "You Died", (255, 0, 0))
 
+            SCORE = 0
+            coins = spawn_coins()
+
+            pygame.display.update()
+            pygame.time.delay(1000)
+            player = Player(100, 400, 50, 50)
+            offset_x = 0
+            continue
+
+        if pygame.sprite.collide_mask(player, finish):
+            pygame.time.delay(300)
+            window.fill((0, 0, 0))  
+            show_message(window, "You Won", (0, 255, 0))
             SCORE = 0
             coins = spawn_coins()
 
@@ -358,7 +391,9 @@ def main(window):
         if ((player.rect.right - offset_x >= WIDTH - scroll_area_width) and player.x_vel > 0) or (
             (player.rect.left - offset_x <= scroll_area_width) and player.x_vel < 0):
             offset_x += player.x_vel
+
         
+
     pygame.quit()
     quit()
 
