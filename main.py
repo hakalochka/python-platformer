@@ -382,7 +382,7 @@ def main(window):
         if check_enemy_collision(player, enemies):
             pygame.time.delay(300)
             window.fill((0, 0, 0))  
-            show_message(window, "You Died", (255, 0, 0))
+            show_message(window, "Game Over", (255, 0, 0))
 
             SCORE = 0
             coins = spawn_coins()
