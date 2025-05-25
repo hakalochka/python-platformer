@@ -9,7 +9,7 @@ pygame.init()
 pygame.display.set_caption("Platformer")
 
 BG_COLOR = (183, 234, 245)
-WIDTH, HEIGHT = 1000, 750
+WIDTH, HEIGHT = 1000, 768
 
 FPS = 60
 PLAYER_VEL = 5
@@ -25,9 +25,15 @@ def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
 def show_message(screen, message, color=(255, 255, 255)):
-    text = FONT.render(message, True, color)
-    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-    screen.blit(text, text_rect)
+    lines = message.split('\n')
+    line_height = FONT.get_height()
+    total_height = line_height * len(lines)
+    
+    for i, line in enumerate(lines):
+        text = FONT.render(line, True, color)
+        text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - total_height // 2 + i * line_height))
+        screen.blit(text, text_rect)
+
     pygame.display.update()
 
 
@@ -82,9 +88,11 @@ def get_coin(size):
 
 def spawn_coins():
     return [
-        Coin(200, HEIGHT - 176, 16),
-        Coin(400, HEIGHT - 176, 16),
-        
+        Coin(208, HEIGHT - 176, 16),
+        Coin(496, HEIGHT - 176, 16),
+        Coin(880, HEIGHT - 560, 16),
+        Coin(976, HEIGHT - 272, 16),
+        Coin(1360, HEIGHT - 176, 16),
     ]
 
 def draw(window, player, objects, coins, offset_x):
@@ -314,23 +322,35 @@ def main(window):
     
     block_size = 96
     floor = [Block(i * block_size, HEIGHT - block_size, block_size) 
-             for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
+             for i in range(-WIDTH // block_size, WIDTH * 3 // block_size)]
     
-    slime = Slime(300, HEIGHT - block_size - 60, 24, 15)
+    wall_l = [Block(-(block_size * 3), i * block_size, block_size) 
+            for i in range(0, HEIGHT // block_size)]
+    
+    wall_r = [Block(WIDTH * 2, i * block_size, block_size) 
+            for i in range(0, HEIGHT // block_size)]
 
     coins = spawn_coins()
 
-    enemies = [slime]
+    enemies = [Slime(block_size * 3, HEIGHT - block_size - 60, 24, 15),
+               Slime(block_size * 5, HEIGHT - block_size * 4 - 60, 24, 15),
+               Slime(block_size * 11, HEIGHT - block_size * 2 - 60, 24, 15)]
 
-    finish = Finish(500, HEIGHT - block_size * 2, block_size)
+    finish = Finish(1600, HEIGHT - block_size * 2, block_size)
 
-    collide_objects = [*floor, Block(0, HEIGHT - block_size * 2, block_size), 
-               Block(block_size * 3, HEIGHT - block_size * 4, block_size)]
+    collide_objects = [*floor, *wall_l, *wall_r
+                       , Block(0, HEIGHT - block_size * 2, block_size)
+                       , Block(block_size * 3, HEIGHT - block_size * 4, block_size)
+                       , Block(block_size * 4, HEIGHT - block_size * 4, block_size)
+                       , Block(block_size * 5, HEIGHT - block_size * 4, block_size)
+                       , Block(block_size * 8, HEIGHT - block_size * 5, block_size)
+                       , Block(block_size * 9, HEIGHT - block_size * 5, block_size)
+                       , Block(block_size * 9, HEIGHT - block_size * 2, block_size)
+                       , Block(block_size * 10, HEIGHT - block_size * 2, block_size)
+                       , Block(block_size * 11, HEIGHT - block_size * 2, block_size)
+                       , Block(block_size * 12, HEIGHT - block_size * 4, block_size)]
    
     objects = [*collide_objects, *enemies, finish]
-    
-    
-    #blocks = [Block(0, HEIGHT - block_size, block_size)]
 
     offset_x = 0
     scroll_area_width = 200
@@ -349,7 +369,8 @@ def main(window):
                     player.jump()
         
         player.loop(FPS)
-        slime.loop()
+        for enemy in enemies:
+            enemy.loop()
         
         handle_move(player, collide_objects)
 
@@ -375,12 +396,12 @@ def main(window):
         if pygame.sprite.collide_mask(player, finish):
             pygame.time.delay(300)
             window.fill((0, 0, 0))  
-            show_message(window, "You Won", (0, 255, 0))
+            show_message(window, f"You Won \n Score: {SCORE}", (0, 255, 0))
             SCORE = 0
             coins = spawn_coins()
 
             pygame.display.update()
-            pygame.time.delay(1000)
+            pygame.time.delay(2000)
             player = Player(100, 400, 50, 50)
             offset_x = 0
             continue
